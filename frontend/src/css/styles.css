@@ -85,13 +85,13 @@ main .spinner .bounce2 {
   display: inline-block;
   cursor: pointer;
   transition: 0.2s ease all;
-  border: 0;
+  border: 1px solid rgba(255, 255, 255, 0.45);
   margin: 0;
   color: var(--action);
-  border-radius: 50%;
-  background: transparent;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
   padding: 0;
-  box-shadow: none;
+  box-shadow: 0 10px 24px rgba(90, 167, 255, 0.18);
   vertical-align: middle;
   text-align: left;
   position: relative;
@@ -103,13 +103,14 @@ main .spinner .bounce2 {
 }
 
 .action i {
-  padding: 0.4em;
+  padding: 0.55em;
   transition: 0.1s ease-in-out all;
-  border-radius: 50%;
+  border-radius: 999px;
 }
 
 .action:hover {
-  background-color: var(--hover);
+  background-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 14px 28px rgba(90, 167, 255, 0.24);
 }
 
 .action ul {

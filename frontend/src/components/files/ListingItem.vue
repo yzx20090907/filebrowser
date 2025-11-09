@@ -8,6 +8,7 @@
     @dragover="dragOver"
     @drop="drop"
     @click="itemClick"
+    @contextmenu.prevent="openContextMenu"
     @mousedown="handleMouseDown"
     @mouseup="handleMouseUp"
     @mouseleave="handleMouseLeave"
@@ -76,6 +77,10 @@ const props = defineProps<{
   index: number;
   readOnly?: boolean;
   path?: string;
+}>();
+
+const emit = defineEmits<{
+  (e: "open-context", payload: { x: number; y: number; index: number }): void;
 }>();
 
 const authStore = useAuthStore();
@@ -291,6 +296,24 @@ const click = (event: Event | KeyboardEvent) => {
 
 const open = () => {
   router.push({ path: props.url });
+};
+
+const openContextMenu = (event: MouseEvent) => {
+  if (props.readOnly) return;
+
+  if (!isSelected.value) {
+    if ((event.ctrlKey || event.metaKey) && fileStore.multiple) {
+      fileStore.selected.push(props.index);
+    } else {
+      fileStore.selected = [props.index];
+    }
+  }
+
+  emit("open-context", {
+    x: event.clientX,
+    y: event.clientY,
+    index: props.index,
+  });
 };
 
 const getExtension = (fileName: string): string => {

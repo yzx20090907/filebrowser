@@ -1,8 +1,10 @@
 <template>
   <div id="login" :class="{ recaptcha: recaptcha }">
-    <form @submit="submit">
-      <img :src="logoURL" alt="File Browser" />
-      <h1>{{ name }}</h1>
+    <form class="login-card" @submit="submit">
+      <div class="login-card__brand">
+        <img :src="logoURL" alt="File Browser" />
+        <h1>{{ name }}</h1>
+      </div>
       <p v-if="reason != null" class="logout-message">
         {{ t(`login.logout_reasons.${reason}`) }}
       </p>
@@ -37,7 +39,7 @@
         :value="createMode ? t('login.signup') : t('login.submit')"
       />
 
-      <p @click="toggleMode" v-if="signup">
+      <p @click="toggleMode" v-if="signup" class="login-card__switch">
         {{ createMode ? t("login.loginInstead") : t("login.createAnAccount") }}
       </p>
     </form>
