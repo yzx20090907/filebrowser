@@ -219,6 +219,7 @@
             v-bind:type="item.type"
             v-bind:size="item.size"
             v-bind:path="item.path"
+            @open-context="openContextMenu"
           >
           </item>
         </div>
@@ -236,6 +237,7 @@
             v-bind:type="item.type"
             v-bind:size="item.size"
             v-bind:path="item.path"
+            @open-context="openContextMenu"
           >
           </item>
         </div>
@@ -271,6 +273,14 @@
         </div>
       </div>
     </template>
+    <ContextMenu
+      v-if="contextMenu.visible && contextMenu.actions.length"
+      :x="contextMenu.x"
+      :y="contextMenu.y"
+      :actions="contextMenu.actions"
+      @select="handleContextAction"
+      @close="closeContextMenu"
+    />
   </div>
 </template>
 
@@ -291,6 +301,7 @@ import HeaderBar from "@/components/header/HeaderBar.vue";
 import Action from "@/components/header/Action.vue";
 import Search from "@/components/Search.vue";
 import Item from "@/components/files/ListingItem.vue";
+import ContextMenu from "@/components/files/ContextMenu.vue";
 import {
   computed,
   inject,
@@ -300,7 +311,7 @@ import {
   ref,
   watch,
 } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { storeToRefs } from "pinia";
 import { removePrefix } from "@/api/utils";
@@ -321,10 +332,31 @@ const layoutStore = useLayoutStore();
 const { req } = storeToRefs(fileStore);
 
 const route = useRoute();
+const router = useRouter();
 
 const { t } = useI18n();
 
 const listing = ref<HTMLElement | null>(null);
+
+type ContextAction = {
+  id: string;
+  label: string;
+  icon: string;
+};
+
+const contextMenu = ref<{
+  visible: boolean;
+  x: number;
+  y: number;
+  index: number | null;
+  actions: ContextAction[];
+}>({
+  visible: false,
+  x: 0,
+  y: 0,
+  index: null,
+  actions: [],
+});
 
 const nameSorted = computed(() =>
   fileStore.req ? fileStore.req.sorting.by === "name" : false
@@ -415,12 +447,167 @@ const headerButtons = computed(() => {
   };
 });
 
+const closeContextMenu = () => {
+  contextMenu.value.visible = false;
+  contextMenu.value.index = null;
+  contextMenu.value.actions = [];
+};
+
+const buildContextActions = (index: number | null): ContextAction[] => {
+  if (index === null || !fileStore.req) return [];
+
+  const target = fileStore.req.items[index];
+  if (!target) return [];
+
+  const actions: ContextAction[] = [];
+
+  actions.push({
+    id: "open",
+    label: target.isDir ? t("buttons.openFile") : t("buttons.preview"),
+    icon: target.isDir ? "folder_open" : "visibility",
+  });
+
+  if (headerButtons.value.download) {
+    actions.push({
+      id: "download",
+      label: t("buttons.download"),
+      icon: "file_download",
+    });
+  }
+
+  if (headerButtons.value.share) {
+    actions.push({
+      id: "share",
+      label: t("buttons.share"),
+      icon: "share",
+    });
+  }
+
+  if (headerButtons.value.rename) {
+    actions.push({
+      id: "rename",
+      label: t("buttons.rename"),
+      icon: "mode_edit",
+    });
+  }
+
+  if (headerButtons.value.copy) {
+    actions.push({
+      id: "copy",
+      label: t("buttons.copyFile"),
+      icon: "content_copy",
+    });
+  }
+
+  if (headerButtons.value.move) {
+    actions.push({
+      id: "move",
+      label: t("buttons.moveFile"),
+      icon: "forward",
+    });
+  }
+
+  actions.push({
+    id: "info",
+    label: t("buttons.info"),
+    icon: "info",
+  });
+
+  if (headerButtons.value.delete) {
+    actions.push({
+      id: "delete",
+      label: t("buttons.delete"),
+      icon: "delete",
+    });
+  }
+
+  return actions;
+};
+
+const openContextMenu = ({
+  x,
+  y,
+  index,
+}: {
+  x: number;
+  y: number;
+  index: number;
+}) => {
+  const actions = buildContextActions(index);
+
+  if (actions.length === 0) {
+    closeContextMenu();
+    return;
+  }
+
+  const padding = 16;
+  const menuWidth = 240;
+  const menuHeight = actions.length * 48 + 24;
+
+  let posX = x;
+  let posY = y;
+
+  if (posX + menuWidth > window.innerWidth - padding) {
+    posX = window.innerWidth - menuWidth - padding;
+  }
+
+  if (posY + menuHeight > window.innerHeight - padding) {
+    posY = window.innerHeight - menuHeight - padding;
+  }
+
+  contextMenu.value.actions = actions;
+  contextMenu.value.index = index;
+  contextMenu.value.x = Math.max(padding, posX);
+  contextMenu.value.y = Math.max(padding, posY);
+  contextMenu.value.visible = true;
+};
+
+const handleContextAction = (action: string) => {
+  const targetIndex = contextMenu.value.index;
+  const target =
+    targetIndex !== null && fileStore.req
+      ? fileStore.req.items[targetIndex]
+      : null;
+
+  closeContextMenu();
+
+  if (!target) return;
+
+  switch (action) {
+    case "open":
+      router.push({ path: target.url });
+      break;
+    case "download":
+      download();
+      break;
+    case "share":
+      layoutStore.showHover("share");
+      break;
+    case "rename":
+      layoutStore.showHover("rename");
+      break;
+    case "copy":
+      layoutStore.showHover("copy");
+      break;
+    case "move":
+      layoutStore.showHover("move");
+      break;
+    case "delete":
+      layoutStore.showHover("delete");
+      break;
+    case "info":
+      layoutStore.showHover("info");
+      break;
+  }
+};
+
 const isMobile = computed(() => {
   return width.value <= 736;
 });
 
 watch(req, () => {
   // Reset the show value
+  closeContextMenu();
   showLimit.value = 50;
 
   nextTick(() => {
@@ -463,6 +650,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   // Remove event listeners before destroying this page.
+  closeContextMenu();
   window.removeEventListener("keydown", keyEvent);
   window.removeEventListener("scroll", scrollEvent);
   window.removeEventListener("resize", windowsResize);
@@ -845,11 +1033,13 @@ const openSearch = () => {
 };
 
 const toggleMultipleSelection = () => {
+  closeContextMenu();
   fileStore.toggleMultiple();
   layoutStore.closeHovers();
 };
 
 const windowsResize = throttle(() => {
+  closeContextMenu();
   colunmsResize();
   width.value = window.innerWidth;
 
